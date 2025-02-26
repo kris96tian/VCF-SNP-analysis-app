@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VCF Analysis Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-extrabold text-center mb-8 text-indigo-300">VCF Analysis Results</h1>
+        <div id="loading" class="text-center p-8">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-4">Loading analysis results...</p>
+        </div>
+        
+        <div id="error-container" class="hidden bg-red-600 p-4 rounded mb-6"></div>
+        
+        <div id="results-container" class="hidden">
+            <!-- Results -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-semibold text-center mb-4 text-indigo-200">Variant Distribution</h2>
+                    <div id="chromosome-chart" class="w-full h-80"></div>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-semibold text-center mb-4 text-indigo-200">Quality Distribution</h2>
+                    <div id="quality-chart" class="w-full h-80"></div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
+                <h2 class="text-2xl font-semibold text-center mb-4 text-indigo-200">Variant Statistics</h2>
+                <p class="text-center text-sm text-gray-300 mb-6">
+                    These metrics summarize key aspects of the VCF data: <br>
+                    • <strong>Variant Types</strong>: Counts of different variant classes.<br>
+                    • <strong>Quality Statistics</strong>: Average and spread of quality scores.<br>
+                    • <strong>T/S Ratio</strong>: Indicator of transition vs. transversion balance.
+                </p>
+                <div id="variant-stats" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+            </div>
+        </div>
+        
+        <div class="mt-8">
+            <a href="/" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Back to Home
+            </a>
+        </div>
+    </div>
+    <footer class="bg-gray-800 text-gray-300 py-4 mt-10">
+        <div class="container mx-auto text-center">
+            <p>Created by Kristian Alikaj. For more visit <a href="https://github.com/kris96tian" class="underline hover:text-indigo-300">GitHub profile</a>.</p>
+        </div>
+    </footer>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const filename = window.location.pathname.split('/').pop();
+            const resultsContainer = document.getElementById('results-container');
+            const loadingIndicator = document.getElementById('loading');
+            const errorContainer = document.getElementById('error-container');
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const jobId = urlParams.get('job_id');
+            
+            try {
+                let apiUrl = `/api/results/${filename}`;
+                if (jobId) {
+                    apiUrl += `?job_id=${jobId}`;
+                }
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to load results');
+                }
+                
+                loadingIndicator.classList.add('hidden');
+                resultsContainer.classList.remove('hidden');
+                
+                // visualizations
+                if (data.visualizations) {
+                    if (data.visualizations.chromosomes) {
+                        Plotly.newPlot('chromosome-chart', JSON.parse(data.visualizations.chromosomes));
+                    }
+                    if (data.visualizations.quality) {
+                        Plotly.newPlot('quality-chart', JSON.parse(data.visualizations.quality));
+                    }
+                }
+                
+                // variant stats
+                const statsContainer = document.getElementById('variant-stats');
+                renderStats(statsContainer, data.results);
+                
+            } catch (error) {
+                loadingIndicator.classList.add('hidden');
+                errorContainer.classList.remove('hidden');
+                errorContainer.textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        function renderStats(container, results) {
+            // Variant types
+            if (results.types) {
+                let typesHtml = '<div class="bg-gray-700 p-4 rounded"><h3 class="font-bold mb-2">Variant Types</h3><ul>';
+                for (const [type, count] of Object.entries(results.types)) {
+                    typesHtml += `<li>${type}: ${count}</li>`;
+                }
+                typesHtml += '</ul></div>';
+                container.innerHTML += typesHtml;
+            }
+            
+            // Quality stats
+            if (results.quality_stats) {
+                let qualityHtml = '<div class="bg-gray-700 p-4 rounded"><h3 class="font-bold mb-2">Quality Statistics</h3><ul>';
+                for (const [stat, value] of Object.entries(results.quality_stats)) {
+                    qualityHtml += `<li>${stat}: ${value.toFixed(2)}</li>`;
+                }
+                qualityHtml += '</ul></div>';
+                container.innerHTML += qualityHtml;
+            }
+            
+            // Ts/Tv ratio
+            if (results.ts_tv_ratio !== undefined) {
+                container.innerHTML += `
+                    <div class="bg-gray-700 p-4 rounded">
+                        <h3 class="font-bold mb-2">Transition/Transversion Ratio</h3>
+                        <p>${results.ts_tv_ratio.toFixed(2)}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

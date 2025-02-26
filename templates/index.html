@@ -1,1 +1,165 @@
-.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VCF Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto px-4 py-12">
+        <h1 class="text-4xl font-extrabold text-center mb-10 text-indigo-300">VCF File Analyzer</h1>
+        <div class="bg-gray-800 p-8 rounded-xl shadow-xl">
+            <form id="upload-form" class="mb-8">
+                <div class="mb-4">
+                    <label class="block text-gray-300 mb-2">Upload VCF File:</label>
+                    <input type="file" id="vcf-file" name="file" 
+                           class="bg-gray-700 p-2 rounded w-full" 
+                           accept=".vcf,.vcf.gz,.bcf">
+                    <p class="mt-1 text-sm text-gray-400">We'll attempt to fix common formatting issues in VCF files.</p>
+                </div>
+                <div class="flex flex-col items-center space-y-4 md:flex-row md:justify-center md:space-x-6 md:space-y-0">
+                    <button type="submit" 
+                        class="bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-md transition duration-200">
+                        Analyze File
+                    </button>
+                    <button type="button" id="validate-button"
+                        class="bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white font-bold py-3 px-8 rounded-full shadow-md transition duration-200">
+                        Validate Only
+                    </button>
+                </div>
+            </form>
+            <div id="upload-status" class="hidden mt-4 p-4 rounded"></div>
+        </div>
+        
+        <div class="mt-10 bg-gray-800 p-8 rounded-xl shadow-xl">
+            <h2 class="text-2xl font-semibold mb-4 text-center text-indigo-200">VCF File Tips</h2>
+            <ul class="list-disc pl-6 space-y-2 text-gray-300">
+                <li>Ensure your VCF file has header lines starting with <code>#</code>.</li>
+                <li>The <code>#CHROM</code> line should separate columns with tabs.</li>
+                <li>Format: <code>#CHROM[tab]POS[tab]ID[tab]REF[tab]ALT[tab]QUAL[tab]FILTER[tab]INFO</code>.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('upload-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('vcf-file');
+            const statusDiv = document.getElementById('upload-status');
+            
+            if (!fileInput.files[0]) {
+                statusDiv.className = 'mt-4 p-4 rounded bg-red-600';
+                statusDiv.textContent = 'Please select a file first';
+                statusDiv.classList.remove('hidden');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            statusDiv.className = 'mt-4 p-4 rounded bg-blue-600';
+            statusDiv.textContent = 'Uploading...';
+            statusDiv.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.className = 'mt-4 p-4 rounded bg-green-600';
+                    statusDiv.innerHTML = `File uploaded successfully! Processing...<br>
+                        <a href="${data.results_url}" class="underline">View results</a>`;
+                    
+                    if (data.job_id) {
+                        pollJobStatus(data.job_id, data.results_url);
+                    }
+                } else {
+                    statusDiv.className = 'mt-4 p-4 rounded bg-red-600';
+                    statusDiv.textContent = `Error: ${data.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                statusDiv.className = 'mt-4 p-4 rounded bg-red-600';
+                statusDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        document.getElementById('validate-button').addEventListener('click', async function() {
+            const fileInput = document.getElementById('vcf-file');
+            const statusDiv = document.getElementById('upload-status');
+            
+            if (!fileInput.files[0]) {
+                statusDiv.className = 'mt-4 p-4 rounded bg-red-600';
+                statusDiv.textContent = 'Please select a file first';
+                statusDiv.classList.remove('hidden');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            statusDiv.className = 'mt-4 p-4 rounded bg-blue-600';
+            statusDiv.textContent = 'Validating...';
+            statusDiv.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/api/validate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (data.valid) {
+                        statusDiv.className = 'mt-4 p-4 rounded bg-green-600';
+                        statusDiv.textContent = data.message || 'VCF file is valid!';
+                    } else {
+                        statusDiv.className = 'mt-4 p-4 rounded bg-yellow-500 text-black';
+                        statusDiv.textContent = `VCF has issues: ${data.error}`;
+                    }
+                } else {
+                    statusDiv.className = 'mt-4 p-4 rounded bg-red-600';
+                    statusDiv.textContent = `Error: ${data.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                statusDiv.className = 'mt-4 p-4 rounded bg-red-600';
+                statusDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        async function pollJobStatus(jobId, resultsUrl) {
+            const statusDiv = document.getElementById('upload-status');
+            
+            try {
+                const response = await fetch(`/api/job/${jobId}`);
+                const data = await response.json();
+                
+                if (data.status === 'processing') {
+                    setTimeout(() => pollJobStatus(jobId, resultsUrl), 2000);
+                } else if (data.status === 'complete') {
+                    statusDiv.className = 'mt-4 p-4 rounded bg-green-600';
+                    statusDiv.innerHTML = 'Analysis complete! <a href="' + 
+                        `${resultsUrl}?job_id=${jobId}" class="underline">View results</a>`;
+                } else if (data.status === 'failed') {
+                    statusDiv.className = 'mt-4 p-4 rounded bg-red-600';
+                    statusDiv.textContent = `Analysis failed: ${data.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                statusDiv.textContent = `Error checking job status: ${error.message}`;
+            }
+        }
+    </script>
+
+    <footer class="bg-gray-800 text-gray-300 py-4 mt-10">
+        <div class="container mx-auto text-center">
+            <p>Created by Kristian Alikaj. For more visit <a href="https://github.com/kris96tian" class="underline hover:text-indigo-300">GitHub profile</a>.</p>
+        </div>
+    </footer>
+</body>
+</html>
