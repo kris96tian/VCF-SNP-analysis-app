@@ -1,0 +1,27 @@
+##fileformat=VCFv4.2
+##source=SimulatedVCF
+##reference=GRCh37
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO                FORMAT  Sample1
+1       10000   .       A       G       50      PASS    DP=100;AF=0.50      GT      0/1
+1       10500   .       T       C       60      PASS    DP=150;AF=0.30      GT      0/1
+1       11000   rs12345 G       A       99      PASS    DP=200;AF=0.10      GT      1/1
+1       11500   .       C       T       45      PASS    DP=120;AF=0.20      GT      0/1
+1       12000   .       G       A       30      q10     DP=80;AF=0.40       GT      0/0
+2       20000   .       C       T       30      q10     DP=50;AF=0.20       GT      0/0
+2       20500   .       G       C       40      PASS    DP=80;AF=0.40       GT      0/1
+2       21000   rs54321 T       A       70      PASS    DP=120;AF=0.25      GT      0/1
+2       21500   .       A       G       65      PASS    DP=95;AF=0.35       GT      0/1
+3       30000   .       A       AC      85      PASS    DP=110;AF=0.15      GT      0/1
+3       30500   .       C       G       55      PASS    DP=90;AF=0.35       GT      0/1
+3       31000   rs67890 G       T       95      PASS    DP=160;AF=0.05      GT      1/1
+3       31500   .       T       C       75      PASS    DP=100;AF=0.20      GT      0/1
+X       40000   .       T       C       65      PASS    DP=100;AF=0.45      GT      0/1
+X       40500   .       G       A       80      PASS    DP=110;AF=0.55      GT      0/1
+Y       50000   .       G       A       75      PASS    DP=140;AF=0.55      GT      0/1
+Y       50500   .       T       C       85      PASS    DP=130;AF=0.60      GT      0/1
+MT      6000    .       A       G       80      PASS    DP=70;AF=0.60       GT      0/1
+MT      7000    .       C       T       90      PASS    DP=85;AF=0.50       GT      1/1
+MT      8000    rsMT001 A       G       100     PASS    DP=95;AF=0.40       GT      0/1
