@@ -1,8 +1,10 @@
 # VCF/SNP Analyzer App
 
+Link to the Web-App: https://vcfanalysis.pythonanywhere.com/
+
 A Flask web application for analyzing VCF (Variant Call Format) files containing genetic variants such as SNPs (Single Nucleotide Polymorphisms).
 
-<img src="blob:chrome-untrusted://media-app/c61587a6-fbd4-473d-8e6f-38bfd86a6080"/>![image](https://github.com/user-attachments/assets/2593f7c5-b05b-4be5-b588-ce9a6e770779)
+<img src="blob:chrome-untrusted://media-app/c61587a6-fbd4-473d-8e6f-38bfd86 a6080"/>![image](https://github.com/user-attachments/assets/2593f7c5-b05b-4be5-b588-ce9a6e770779)
 
 
 ## Features
