@@ -14,9 +14,9 @@
             <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
             <p class="mt-4">Loading analysis results...</p>
         </div>
-        
+
         <div id="error-container" class="hidden bg-red-600 p-4 rounded mb-6"></div>
-        
+
         <div id="results-container" class="hidden">
             <!-- Results -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -29,7 +29,7 @@
                     <div id="quality-chart" class="w-full h-80"></div>
                 </div>
             </div>
-            
+
             <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
                 <h2 class="text-2xl font-semibold text-center mb-4 text-indigo-200">Variant Statistics</h2>
                 <p class="text-center text-sm text-gray-300 mb-6">
@@ -41,7 +41,7 @@
                 <div id="variant-stats" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
             </div>
         </div>
-        
+
         <div class="mt-8">
             <a href="/" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                 Back to Home
@@ -59,49 +59,71 @@
             const resultsContainer = document.getElementById('results-container');
             const loadingIndicator = document.getElementById('loading');
             const errorContainer = document.getElementById('error-container');
-            
+
             const urlParams = new URLSearchParams(window.location.search);
             const jobId = urlParams.get('job_id');
-            
-            try {
-                let apiUrl = `/api/results/${filename}`;
-                if (jobId) {
-                    apiUrl += `?job_id=${jobId}`;
-                }
-                
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to load results');
-                }
-                
+
+            if (!jobId) {
                 loadingIndicator.classList.add('hidden');
-                resultsContainer.classList.remove('hidden');
-                
-                // visualizations
-                if (data.visualizations) {
-                    if (data.visualizations.chromosomes) {
-                        Plotly.newPlot('chromosome-chart', JSON.parse(data.visualizations.chromosomes));
+                errorContainer.classList.remove('hidden');
+                errorContainer.innerHTML = `Error: job_id parameter is required.<br>
+                    Please return to the <a href="/" class="underline">home page</a> and upload your file again.`;
+                return;
+            }
+
+            try {
+                let attempts = 0;
+                const maxAttempts = 30; 
+
+                const checkResults = async function() {
+                    attempts++;
+                    const apiUrl = `/api/results/${filename}?job_id=${jobId}`;
+
+                    const response = await fetch(apiUrl);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to load results');
                     }
-                    if (data.visualizations.quality) {
-                        Plotly.newPlot('quality-chart', JSON.parse(data.visualizations.quality));
+
+                    if (data.status === 'processing' && attempts < maxAttempts) {
+                        setTimeout(checkResults, 2000);
+                        return;
                     }
-                }
-                
-                // variant stats
-                const statsContainer = document.getElementById('variant-stats');
-                renderStats(statsContainer, data.results);
-                
+
+                    loadingIndicator.classList.add('hidden');
+
+                    if (attempts >= maxAttempts) {
+                        errorContainer.classList.remove('hidden');
+                        errorContainer.textContent = `Processing is taking longer than expected. Please check back later.`;
+                        return;
+                    }
+
+                    resultsContainer.classList.remove('hidden');
+
+                    // visualizations
+                    if (data.visualizations) {
+                        if (data.visualizations.chromosomes) {
+                            Plotly.newPlot('chromosome-chart', JSON.parse(data.visualizations.chromosomes));
+                        }
+                        if (data.visualizations.quality) {
+                            Plotly.newPlot('quality-chart', JSON.parse(data.visualizations.quality));
+                        }
+                    }
+
+                    // variant stats
+                    const statsContainer = document.getElementById('variant-stats');
+                    renderStats(statsContainer, data.results);
+                };
+                checkResults();
             } catch (error) {
                 loadingIndicator.classList.add('hidden');
                 errorContainer.classList.remove('hidden');
                 errorContainer.textContent = `Error: ${error.message}`;
             }
         });
-        
+
         function renderStats(container, results) {
-            // Variant types
             if (results.types) {
                 let typesHtml = '<div class="bg-gray-700 p-4 rounded"><h3 class="font-bold mb-2">Variant Types</h3><ul>';
                 for (const [type, count] of Object.entries(results.types)) {
@@ -110,7 +132,7 @@
                 typesHtml += '</ul></div>';
                 container.innerHTML += typesHtml;
             }
-            
+
             // Quality stats
             if (results.quality_stats) {
                 let qualityHtml = '<div class="bg-gray-700 p-4 rounded"><h3 class="font-bold mb-2">Quality Statistics</h3><ul>';
@@ -120,7 +142,7 @@
                 qualityHtml += '</ul></div>';
                 container.innerHTML += qualityHtml;
             }
-            
+
             // Ts/Tv ratio
             if (results.ts_tv_ratio !== undefined) {
                 container.innerHTML += `
